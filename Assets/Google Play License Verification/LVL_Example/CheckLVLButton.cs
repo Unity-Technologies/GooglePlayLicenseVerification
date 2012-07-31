@@ -59,7 +59,8 @@ public class CheckLVLButton : MonoBehaviour
 		m_Activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer").GetStatic<AndroidJavaObject>("currentActivity");
 		m_PackageName = m_Activity.Call<string>("getPackageName");
 
-		string cachePath = m_Activity.Call<AndroidJavaObject>("getDir", m_PackageName, 0).Call<string>("getPath");
+		string cachePath = System.IO.Path.Combine(m_Activity.Call<AndroidJavaObject>("getCacheDir").Call<string>("getPath"), m_PackageName);
+		System.IO.Directory.CreateDirectory(cachePath);
 
 		System.IO.File.WriteAllBytes(cachePath + "/classes.jar", classes_jar);
 		System.IO.Directory.CreateDirectory(cachePath + "/odex");

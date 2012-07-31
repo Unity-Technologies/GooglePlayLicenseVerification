@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 public class CheckLVLButton : MonoBehaviour
@@ -135,7 +136,77 @@ public class CheckLVLButton : MonoBehaviour
 			GUI.Label(new Rect(20, 500, 450, 20), "Version code = " + m_VersionCode_Received);
 			GUI.Label(new Rect(20, 520, 450, 20), "User ID   = " + m_UserID_Received);
 			GUI.Label(new Rect(20, 540, 450, 20), "Timestamp = " + m_Timestamp_Received);
+			GUI.Label(new Rect(20, 560, 450, 20), "Max Retry = " + m_MaxRetry_Received);
+			GUI.Label(new Rect(20, 580, 450, 20), "License Validity = " + m_LicenceValidityTimestamp_Received);
+			GUI.Label(new Rect(20, 600, 450, 20), "Grace Period = " + m_GracePeriodTimestamp_Received);
 		}
+	}
+
+	internal static Dictionary<string, string> DecodeExtras(string query)
+	{
+		Dictionary<string, string> result = new Dictionary<string, string>();
+
+		if (query.Length == 0)
+			return result;
+
+		string decoded = query;
+		int decodedLength = decoded.Length;
+		int namePos = 0;
+		bool first = true;
+
+		while (namePos <= decodedLength)
+		{
+			int valuePos = -1, valueEnd = -1;
+			for (int q = namePos; q < decodedLength; q++)
+			{
+				if (valuePos == -1 && decoded[q] == '=')
+				{
+					valuePos = q + 1;
+				}
+				else if (decoded[q] == '&')
+				{
+					valueEnd = q;
+					break;
+				}
+			}
+
+			if (first)
+			{
+				first = false;
+				if (decoded[namePos] == '?')
+					namePos++;
+			}
+
+			string name, value;
+
+			if (valuePos == -1)
+			{
+
+				name = null;
+				valuePos = namePos;
+			}
+			else
+			{
+				name = WWW.UnEscapeURL(decoded.Substring(namePos, valuePos - namePos - 1));
+			}
+
+			if (valueEnd < 0)
+			{
+				namePos = -1;
+				valueEnd = decoded.Length;
+			}
+			else
+			{
+				namePos = valueEnd + 1;
+			}
+
+			value = WWW.UnEscapeURL(decoded.Substring(valuePos, valueEnd - valuePos));
+
+			result.Add(name, value);
+			if (namePos == -1)
+				break;
+		}
+		return result;
 	}
 
 	private void Process()
@@ -174,7 +245,20 @@ public class CheckLVLButton : MonoBehaviour
 			return;
 		}
 
-		string[] vars = message.Split('|');		// response | nonce | package | version | userid | timestamp
+		int index = message.IndexOf(':');
+		string mainData, extraData;
+		if (-1 == index)
+		{
+			mainData = message;
+			extraData = "";
+		}
+		else
+		{
+			mainData = message.Substring(0, index);
+			extraData = index >= message.Length ? "" : message.Substring(index + 1);
+		}
+
+		string[] vars = mainData.Split('|');		// response | nonce | package | version | userid | timestamp
 
 		if (vars[0].CompareTo(responseCode.ToString()) != 0)
 		{
@@ -191,5 +275,39 @@ public class CheckLVLButton : MonoBehaviour
 		System.Int64 ticks			= System.Convert.ToInt64(vars[5]) * 10 * 1000;
 		System.DateTime epoch		= new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
 		m_Timestamp_Received		= epoch.AddTicks(ticks).ToLocalTime().ToString();
+
+		if (!string.IsNullOrEmpty(extraData))
+		{
+			Dictionary<string, string> extrasDecoded = DecodeExtras(extraData);
+
+			if (extrasDecoded.ContainsKey("GR"))
+			{
+				m_MaxRetry_Received = System.Convert.ToInt32(extrasDecoded["GR"]);
+			}
+			else
+			{
+				m_MaxRetry_Received = 0;
+			}
+
+			if (extrasDecoded.ContainsKey("VT"))
+			{
+				ticks = System.Convert.ToInt64(extrasDecoded["VT"]) * 10 * 1000;
+				m_LicenceValidityTimestamp_Received = epoch.AddTicks(ticks).ToLocalTime().ToString();
+			}
+			else
+			{
+				m_LicenceValidityTimestamp_Received = null;
+			}
+
+			if (extrasDecoded.ContainsKey("GT"))
+			{
+				ticks = System.Convert.ToInt64(extrasDecoded["GT"]) * 10 * 1000;
+				m_GracePeriodTimestamp_Received = epoch.AddTicks(ticks).ToLocalTime().ToString();
+			}
+			else
+			{
+				m_GracePeriodTimestamp_Received = null;
+			}
+		}
 	}
 }

@@ -97,6 +97,13 @@ public class CheckLVLButton : MonoBehaviour
 	private int m_MaxRetry_Received;
 	private string m_LicenceValidityTimestamp_Received;
 	private string m_GracePeriodTimestamp_Received;
+	private string m_UpdateTimestamp_Received;
+	private string m_FileURL1_Received = "";
+	private string m_FileURL2_Received = "";
+	private string m_FileName1_Received;
+	private string m_FileName2_Received;
+	private int m_FileSize1_Received;
+	private int m_FileSize2_Received;
 
 	void OnGUI()
 	{
@@ -139,6 +146,15 @@ public class CheckLVLButton : MonoBehaviour
 			GUI.Label(new Rect(20, 560, 450, 20), "Max Retry = " + m_MaxRetry_Received);
 			GUI.Label(new Rect(20, 580, 450, 20), "License Validity = " + m_LicenceValidityTimestamp_Received);
 			GUI.Label(new Rect(20, 600, 450, 20), "Grace Period = " + m_GracePeriodTimestamp_Received);
+			GUI.Label(new Rect(20, 620, 450, 20), "Update Since = " + m_UpdateTimestamp_Received);
+			GUI.Label(new Rect(20, 640, 450, 20), "Main OBB URL = " + m_FileURL1_Received.Substring(0,
+															Mathf.Min(m_FileURL1_Received.Length,50)) + "...");
+			GUI.Label(new Rect(20, 660, 450, 20), "Main OBB Name = " + m_FileName1_Received);
+			GUI.Label(new Rect(20, 680, 450, 20), "Main OBB Size = " + m_FileSize1_Received);
+			GUI.Label(new Rect(20, 700, 450, 20), "Patch OBB URL = " + m_FileURL2_Received.Substring(0,
+															Mathf.Min(m_FileURL2_Received.Length,50)) + "...");
+			GUI.Label(new Rect(20, 720, 450, 20), "Patch OBB Name = " + m_FileName2_Received);
+			GUI.Label(new Rect(20, 740, 450, 20), "Patch OBB Size = " + m_FileSize2_Received);
 		}
 	}
 
@@ -319,6 +335,70 @@ public class CheckLVLButton : MonoBehaviour
 			else
 			{
 				m_GracePeriodTimestamp_Received = null;
+			}
+
+			if (extrasDecoded.ContainsKey("UT"))
+			{
+				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["UT"]));
+				m_UpdateTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
+			}
+			else
+			{
+				m_UpdateTimestamp_Received = null;
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_URL1"))
+			{
+				m_FileURL1_Received = extrasDecoded["FILE_URL1"];
+			}
+			else
+			{
+				m_FileURL1_Received = "";
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_URL2"))
+			{
+				m_FileURL2_Received = extrasDecoded["FILE_URL2"];
+			}
+			else
+			{
+				m_FileURL2_Received = "";
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_NAME1"))
+			{
+				m_FileName1_Received = extrasDecoded["FILE_NAME1"];
+			}
+			else
+			{
+				m_FileName1_Received = null;
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_NAME2"))
+			{
+				m_FileName2_Received = extrasDecoded["FILE_NAME2"];
+			}
+			else
+			{
+				m_FileName2_Received = null;
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_SIZE1"))
+			{
+				m_FileSize1_Received = System.Convert.ToInt32(extrasDecoded["FILE_SIZE1"]);
+			}
+			else
+			{
+				m_FileSize1_Received = 0;
+			}
+
+			if (extrasDecoded.ContainsKey("FILE_SIZE2"))
+			{
+				m_FileSize2_Received = System.Convert.ToInt32(extrasDecoded["FILE_SIZE2"]);
+			}
+			else
+			{
+				m_FileSize2_Received = 0;
 			}
 		}
 	}

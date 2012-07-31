@@ -90,26 +90,29 @@ public class CheckLVLButton : MonoBehaviour
 	private string m_ResponseCode_Received;
 	private string m_PackageName_Received;
 	private int m_Nonce_Received;
-	private int	m_VersionCode_Received;
+	private int m_VersionCode_Received;
 	private string m_UserID_Received;
 	private string m_Timestamp_Received;
+	private int m_MaxRetry_Received;
+	private string m_LicenceValidityTimestamp_Received;
+	private string m_GracePeriodTimestamp_Received;
 
 	void OnGUI()
 	{
 		if (!m_RunningOnAndroid)
 		{
-			GUI.Label(new Rect(10, 10, Screen.width-10, 20), "Use LVL checks only on the Android device!");
+			GUI.Label(new Rect(10, 10, Screen.width - 10, 20), "Use LVL checks only on the Android device!");
 			return;
 		}
 		GUI.enabled = m_ButtonEnabled;
-		if (GUI.Button(new Rect(10,10, 450, 300), m_ButtonMessage))
+		if (GUI.Button(new Rect(10, 10, 450, 300), m_ButtonMessage))
 		{
 			m_Nonce = new System.Random().Next();
 
-			object[] param = new object[] { new AndroidJavaObject[]{ m_Activity } };
+			object[] param = new object[] { new AndroidJavaObject[] { m_Activity } };
 			AndroidJavaObject[] ctors = m_LVLCheckType.Call<AndroidJavaObject[]>("getConstructors");
 			m_LVLCheck = ctors[0].Call<AndroidJavaObject>("newInstance", param);
-			m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process) );
+			m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process));
 
 			m_ButtonMessage = "Checking...";
 			m_ButtonEnabled = false;

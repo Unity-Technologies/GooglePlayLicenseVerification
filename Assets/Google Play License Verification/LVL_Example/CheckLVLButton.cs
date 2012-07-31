@@ -225,7 +225,7 @@ public class CheckLVLButton : MonoBehaviour
 		m_LVLCheck = null;
 
 		m_ResponseCode_Received = responseCode.ToString();
-		if (responseCode < 0 || message == null || signature == null)
+		if (responseCode < 0 || string.IsNullOrEmpty(message) || string.IsNullOrEmpty(signature))
 		{
 			m_PackageName_Received = "<Failed>";
 			return;

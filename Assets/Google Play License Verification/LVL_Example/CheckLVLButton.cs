@@ -209,6 +209,19 @@ public class CheckLVLButton : MonoBehaviour
 		return result;
 	}
 
+	private System.Int64 ConvertEpochSecondsToTicks(System.Int64 secs)
+	{
+		System.DateTime epoch = new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
+		System.Int64 seconds_to_100ns_ticks	=  10 * 1000;
+		System.Int64 max_seconds_allowed =  (System.DateTime.MaxValue.Ticks - epoch.Ticks)
+												/ seconds_to_100ns_ticks;
+		if (secs < 0)
+			secs = 0;
+		if (secs > max_seconds_allowed)
+			secs = max_seconds_allowed;
+		return epoch.Ticks + secs * seconds_to_100ns_ticks;
+	}
+
 	private void Process()
 	{
 		m_LVL_Received = true;
@@ -272,9 +285,8 @@ public class CheckLVLButton : MonoBehaviour
 		m_PackageName_Received		= vars[2];
 		m_VersionCode_Received		= System.Convert.ToInt32(vars[3]);
 		m_UserID_Received			= vars[4];
-		System.Int64 ticks			= System.Convert.ToInt64(vars[5]) * 10 * 1000;
-		System.DateTime epoch		= new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
-		m_Timestamp_Received		= epoch.AddTicks(ticks).ToLocalTime().ToString();
+		System.Int64 ticks			= ConvertEpochSecondsToTicks(System.Convert.ToInt64(vars[5]));
+		m_Timestamp_Received		= new System.DateTime(ticks).ToLocalTime().ToString();
 
 		if (!string.IsNullOrEmpty(extraData))
 		{
@@ -291,8 +303,8 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("VT"))
 			{
-				ticks = System.Convert.ToInt64(extrasDecoded["VT"]) * 10 * 1000;
-				m_LicenceValidityTimestamp_Received = epoch.AddTicks(ticks).ToLocalTime().ToString();
+				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["VT"]));
+				m_LicenceValidityTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
 			}
 			else
 			{
@@ -301,8 +313,8 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("GT"))
 			{
-				ticks = System.Convert.ToInt64(extrasDecoded["GT"]) * 10 * 1000;
-				m_GracePeriodTimestamp_Received = epoch.AddTicks(ticks).ToLocalTime().ToString();
+				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["GT"]));
+				m_GracePeriodTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
 			}
 			else
 			{

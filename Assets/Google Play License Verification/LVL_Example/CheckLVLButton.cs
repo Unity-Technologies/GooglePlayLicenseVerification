@@ -55,20 +55,22 @@ public class CheckLVLButton : MonoBehaviour
 	{
 		byte[] classes_jar = ServiceBinder.bytes;
 
-		System.IO.File.WriteAllBytes(Application.temporaryCachePath + "/classes.jar", classes_jar);
-		System.IO.Directory.CreateDirectory(Application.temporaryCachePath + "/odex");
-
 		m_Activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer").GetStatic<AndroidJavaObject>("currentActivity");
+		m_PackageName = m_Activity.Call<string>("getPackageName");
+
+		string cachePath = m_Activity.Call<AndroidJavaObject>("getDir", m_PackageName, 0).Call<string>("getPath");
+
+		System.IO.File.WriteAllBytes(cachePath + "/classes.jar", classes_jar);
+		System.IO.Directory.CreateDirectory(cachePath + "/odex");
+
 		AndroidJavaObject dcl = new AndroidJavaObject("dalvik.system.DexClassLoader",
-													  Application.temporaryCachePath + "/classes.jar",
-													  Application.temporaryCachePath + "/odex",
+													  cachePath + "/classes.jar",
+													  cachePath + "/odex",
 													  null,
 													  m_Activity.Call<AndroidJavaObject>("getClassLoader"));
 		m_LVLCheckType = dcl.Call<AndroidJavaObject>("findClass", "com.unity3d.plugin.lvl.ServiceBinder");
 
-		System.IO.Directory.Delete(Application.temporaryCachePath, true);
-
-		m_PackageName = m_Activity.Call<string>("getPackageName");
+		System.IO.Directory.Delete(cachePath, true);
 	}
 	
 	private bool m_RunningOnAndroid = false;

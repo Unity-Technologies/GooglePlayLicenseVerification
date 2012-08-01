@@ -116,15 +116,15 @@ public class CheckLVLButton : MonoBehaviour
 		GUI.enabled = m_ButtonEnabled;
 		if (GUI.Button(new Rect(10, 10, 450, 300), m_ButtonMessage))
 		{
+			m_ButtonMessage = "Checking...";
+			m_ButtonEnabled = false;
+
 			m_Nonce = new System.Random().Next();
 
 			object[] param = new object[] { new AndroidJavaObject[] { m_Activity } };
 			AndroidJavaObject[] ctors = m_LVLCheckType.Call<AndroidJavaObject[]>("getConstructors");
 			m_LVLCheck = ctors[0].Call<AndroidJavaObject>("newInstance", param);
 			m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process));
-
-			m_ButtonMessage = "Checking...";
-			m_ButtonEnabled = false;
 		}
 		GUI.enabled = true;
 

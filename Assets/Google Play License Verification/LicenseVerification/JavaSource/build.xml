@@ -101,7 +101,7 @@
         <property name="proguard.jar" location="${android.tools.dir}/proguard/lib/proguard.jar" />
         <taskdef name="proguard" classname="proguard.ant.ProGuardTask" classpath="${proguard.jar}" />
 
-        <pathconvert property="android.libraryjars" refid="android.target.classpath">
+        <pathconvert property="project.target.classpath.value" refid="project.target.class.path">
             <firstmatchmapper>
                 <regexpmapper from='^([^ ]*)( .*)$$' to='"\1\2"'/>
                 <identitymapper/>
@@ -112,7 +112,7 @@
             -include      "${proguard.config}"
             -injars       ${plugin.jar}
             -outjars      "${obfuscated.jar}"
-            -libraryjars  "${android.libraryjars}"
+            -libraryjars  "${project.target.classpath.value}"
         </proguard>
     </target>
 

@@ -27,7 +27,9 @@ public class ServiceBinder extends android.os.Binder implements ServiceConnectio
 		}
 		mNonce = nonce;
 		mDone = done;
-		if (mContext.bindService(new Intent(SERVICE), this, Context.BIND_AUTO_CREATE))
+		Intent serviceIntent = new Intent(SERVICE);
+		serviceIntent.setPackage("com.android.vending");
+		if (mContext.bindService(serviceIntent, this, Context.BIND_AUTO_CREATE))
 			return;
 
 		mDone.run();

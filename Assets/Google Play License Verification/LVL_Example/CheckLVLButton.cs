@@ -105,6 +105,7 @@ public class CheckLVLButton : MonoBehaviour
 	private string m_FileName2_Received;
 	private int m_FileSize1_Received;
 	private int m_FileSize2_Received;
+	private string m_LicensingURL_Received = "";
 
 	void OnGUI()
 	{
@@ -156,6 +157,8 @@ public class CheckLVLButton : MonoBehaviour
 															Mathf.Min(m_FileURL2_Received.Length,50)) + "...");
 			GUI.Label(new Rect(20, 720, 450, 20), "Patch OBB Name = " + m_FileName2_Received);
 			GUI.Label(new Rect(20, 740, 450, 20), "Patch OBB Size = " + m_FileSize2_Received);
+			GUI.Label(new Rect(20, 760, 450, 20), "Licensing URL = " + m_LicensingURL_Received.Substring(0,
+															Mathf.Min(m_LicensingURL_Received.Length,50)) + "...");
 		}
 	}
 
@@ -400,6 +403,15 @@ public class CheckLVLButton : MonoBehaviour
 			else
 			{
 				m_FileSize2_Received = 0;
+			}
+			
+			if (extrasDecoded.ContainsKey("LU"))
+			{
+				m_LicensingURL_Received = extrasDecoded["LU"];
+			}
+			else
+			{
+				m_LicensingURL_Received = "";
 			}
 		}
 	}

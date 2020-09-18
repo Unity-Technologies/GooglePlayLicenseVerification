@@ -8,12 +8,6 @@ using Random = System.Random;
 public class CheckLVLButton : MonoBehaviour
 {
 	/*
-	 * This is the Java service binder classes.jar
-	 */
-	[SerializeField]
-	private TextAsset ServiceBinder;
-
-	/*
 	 * Use the public LVL key from the Android Market publishing section here.
 	 */
 	[SerializeField] [Tooltip("Insert LVL public key here")]
@@ -80,25 +74,9 @@ public class CheckLVLButton : MonoBehaviour
 	 */
 	private void LoadServiceBinder()
 	{
-		byte[] classes_jar = ServiceBinder.bytes;
-
 		m_Activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer").GetStatic<AndroidJavaObject>("currentActivity");
 		m_PackageName = m_Activity.Call<string>("getPackageName");
-
-		string cachePath = System.IO.Path.Combine(m_Activity.Call<AndroidJavaObject>("getCacheDir").Call<string>("getPath"), m_PackageName);
-		System.IO.Directory.CreateDirectory(cachePath);
-
-		System.IO.File.WriteAllBytes(cachePath + "/classes.jar", classes_jar);
-		System.IO.Directory.CreateDirectory(cachePath + "/odex");
-
-		AndroidJavaObject dcl = new AndroidJavaObject("dalvik.system.DexClassLoader",
-													  cachePath + "/classes.jar",
-													  cachePath + "/odex",
-													  null,
-													  m_Activity.Call<AndroidJavaObject>("getClassLoader"));
-		m_LVLCheckType = dcl.Call<AndroidJavaObject>("findClass", "com.unity3d.plugin.lvl.ServiceBinder");
-
-		System.IO.Directory.Delete(cachePath, true);
+		m_LVLCheckType = new AndroidJavaObject("com.unity3d.plugin.lvl.ServiceBinder", m_Activity);
 	}
 	
 	private bool m_RunningOnAndroid = false;
@@ -148,9 +126,7 @@ public class CheckLVLButton : MonoBehaviour
 
 			m_Nonce = _random.Next();
 
-			object[] param = new object[] { new AndroidJavaObject[] { m_Activity } };
-			AndroidJavaObject[] ctors = m_LVLCheckType.Call<AndroidJavaObject[]>("getConstructors");
-			m_LVLCheck = ctors[0].Call<AndroidJavaObject>("newInstance", param);
+			m_LVLCheck = new AndroidJavaObject("com.unity3d.plugin.lvl.ServiceBinder", m_Activity);
 			m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process));
 		}
 		GUI.enabled = true;
@@ -281,6 +257,7 @@ public class CheckLVLButton : MonoBehaviour
 		string message		= m_LVLCheck.Get<string>("_arg1");
 		string signature	= m_LVLCheck.Get<string>("_arg2");
 
+		m_LVLCheck.Dispose();
 		m_LVLCheck = null;
 
 		m_ResponseCode_Received = responseCode.ToString();

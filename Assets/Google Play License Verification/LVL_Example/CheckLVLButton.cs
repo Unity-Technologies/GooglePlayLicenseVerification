@@ -1,5 +1,5 @@
+using System;
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 
@@ -8,46 +8,67 @@ public class CheckLVLButton : MonoBehaviour
 	/*
 	 * This is the Java service binder classes.jar
 	 */
-	public TextAsset ServiceBinder;
+	[SerializeField]
+	private TextAsset ServiceBinder;
 
 	/*
 	 * Use the public LVL key from the Android Market publishing section here.
 	 */
-	private string m_PublicKey_Base64 = "<Insert LVL public key here>";
+	[SerializeField] [Tooltip("Insert LVL public key here")]
+	private string m_PublicKey_Base64 = string.Empty;
 
 	/*
 	 * Consider storing the public key as RSAParameters.Modulus/.Exponent rather than Base64 to prevent the ASN1 parsing..
 	 * These are printed to the logcat below.
 	 */
-	private string m_PublicKey_Modulus_Base64 = "<Set to output from SimpleParseASN1>";
-	private string m_PublicKey_Exponent_Base64 = "< .. and here >";
+	[SerializeField] [Tooltip("Filled automatically when you input a valid LVL public key above")]
+	private string m_PublicKey_Modulus_Base64 = string.Empty;
 	
+	[SerializeField] [Tooltip("Filled automatically when you input a valid LVL public key above")]
+	private string m_PublicKey_Exponent_Base64 = string.Empty;
+
+	private RSAParameters m_PublicKey;
+
 	void Start()
 	{
-		// Either parse the ASN1-formatted public LVL key at runtime (only available when stripping is disabled)..
-		RSA.SimpleParseASN1(m_PublicKey_Base64, ref m_PublicKey.Modulus, ref m_PublicKey.Exponent);
-		m_PublicKey_Modulus_Base64 = System.Convert.ToBase64String(m_PublicKey.Modulus);
-		m_PublicKey_Exponent_Base64 = System.Convert.ToBase64String(m_PublicKey.Exponent);
-		// .. and check the logcat for these values ...
-		Debug.Log("private string m_PublicKey_Modulus_Base64 = \"" + m_PublicKey_Modulus_Base64 + "\";");
-		Debug.Log("private string m_PublicKey_Exponent_Base64 = \"" + m_PublicKey_Exponent_Base64 + "\";");
-
-		// .. or use pre-parsed keys (and remove the code above).
-		m_PublicKey.Modulus = System.Convert.FromBase64String(m_PublicKey_Modulus_Base64);
-		m_PublicKey.Exponent = System.Convert.FromBase64String(m_PublicKey_Exponent_Base64);
+		if (string.IsNullOrEmpty(m_PublicKey_Modulus_Base64) || string.IsNullOrEmpty(m_PublicKey_Exponent_Base64))
+		{
+			Debug.LogError("Please input a valid LVL public key in the inspector to generate its modulus and exponent");
+			return;
+		}
 		
-		m_RunningOnAndroid = new AndroidJavaClass("android.os.Build").GetRawClass() != System.IntPtr.Zero;
+		m_RunningOnAndroid = new AndroidJavaClass("android.os.Build").GetRawClass() != IntPtr.Zero;
 		if (!m_RunningOnAndroid)
 			return;
+		
+		m_PublicKey.Modulus = Convert.FromBase64String(m_PublicKey_Modulus_Base64);
+		m_PublicKey.Exponent = Convert.FromBase64String(m_PublicKey_Exponent_Base64);	
 
 		LoadServiceBinder();
-
-		new SHA1CryptoServiceProvider();	// keep a dummy reference to prevent too aggressive stripping
 
 		m_ButtonMessage = "Check LVL";
 	}
 
-	private RSAParameters m_PublicKey = new RSAParameters();
+	private void OnValidate()
+	{
+		if (string.IsNullOrEmpty(m_PublicKey_Base64) == false)
+		{
+			try
+			{
+				RSA.SimpleParseASN1(m_PublicKey_Base64, ref m_PublicKey.Modulus, ref m_PublicKey.Exponent);
+			}
+			catch (Exception e)
+			{
+				Debug.LogError($"Please input a valid LVL public key in the inspector to generate its modulus and exponent\n{e.Message}");
+				return;
+			}
+			
+			// The reason we keep the modulus and exponent is to avoid a costly call to SimpleParseASN1 at runtime
+			m_PublicKey_Modulus_Base64 = Convert.ToBase64String(m_PublicKey.Modulus);
+			m_PublicKey_Exponent_Base64 = Convert.ToBase64String(m_PublicKey.Exponent);
+			m_PublicKey_Base64 = string.Empty;
+		}
+	}
 
 	/*
 	 *

@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using Random = System.Random;
 
 public class CheckLVLButton : MonoBehaviour
 {
@@ -28,6 +29,7 @@ public class CheckLVLButton : MonoBehaviour
 	private string m_PublicKey_Exponent_Base64 = string.Empty;
 
 	private RSAParameters m_PublicKey;
+	private Random _random;
 
 	void Start()
 	{
@@ -40,6 +42,8 @@ public class CheckLVLButton : MonoBehaviour
 		m_RunningOnAndroid = new AndroidJavaClass("android.os.Build").GetRawClass() != IntPtr.Zero;
 		if (!m_RunningOnAndroid)
 			return;
+
+		_random = new Random();
 		
 		m_PublicKey.Modulus = Convert.FromBase64String(m_PublicKey_Modulus_Base64);
 		m_PublicKey.Exponent = Convert.FromBase64String(m_PublicKey_Exponent_Base64);	
@@ -141,7 +145,7 @@ public class CheckLVLButton : MonoBehaviour
 			m_ButtonMessage = "Checking...";
 			m_ButtonEnabled = false;
 
-			m_Nonce = new System.Random().Next();
+			m_Nonce = _random.Next();
 
 			object[] param = new object[] { new AndroidJavaObject[] { m_Activity } };
 			AndroidJavaObject[] ctors = m_LVLCheckType.Call<AndroidJavaObject[]>("getConstructors");

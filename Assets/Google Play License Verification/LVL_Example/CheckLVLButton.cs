@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using UnityEngine.Networking;
 using Random = System.Random;
 
 public class CheckLVLButton : MonoBehaviour
@@ -232,7 +233,7 @@ public class CheckLVLButton : MonoBehaviour
 			}
 			else
 			{
-				name = WWW.UnEscapeURL(decoded.Substring(namePos, valuePos - namePos - 1));
+				name = UnityWebRequest.UnEscapeURL(decoded.Substring(namePos, valuePos - namePos - 1));
 			}
 
 			if (valueEnd < 0)
@@ -245,7 +246,7 @@ public class CheckLVLButton : MonoBehaviour
 				namePos = valueEnd + 1;
 			}
 
-			value = WWW.UnEscapeURL(decoded.Substring(valuePos, valueEnd - valuePos));
+			value = UnityWebRequest.UnEscapeURL(decoded.Substring(valuePos, valueEnd - valuePos));
 
 			result.Add(name, value);
 			if (namePos == -1)

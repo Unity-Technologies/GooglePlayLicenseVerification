@@ -3,8 +3,10 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 using Random = System.Random;
 
+[RequireComponent(typeof(Button))]
 public class CheckLVLButton : MonoBehaviour
 {
 	/*
@@ -23,29 +25,40 @@ public class CheckLVLButton : MonoBehaviour
 	[SerializeField] [Tooltip("Filled automatically when you input a valid LVL public key above")]
 	private string m_PublicKey_Exponent_Base64 = string.Empty;
 
+	[Header("UI")]
+	[SerializeField]
+	private Button button;
+
+	[SerializeField]
+	private Text resultsTextArea = default;
+
 	private RSAParameters m_PublicKey;
 	private Random _random;
+	private AndroidJavaObject m_Activity;
+	private AndroidJavaObject m_LVLCheck;
 
-	void Start()
+	private void Start()
 	{
 		if (string.IsNullOrEmpty(m_PublicKey_Modulus_Base64) || string.IsNullOrEmpty(m_PublicKey_Exponent_Base64))
 		{
-			Debug.LogError("Please input a valid LVL public key in the inspector to generate its modulus and exponent");
+			DisplayError("Please input a valid LVL public key in the inspector to generate its modulus and exponent");
 			return;
 		}
 		
-		m_RunningOnAndroid = new AndroidJavaClass("android.os.Build").GetRawClass() != IntPtr.Zero;
-		if (!m_RunningOnAndroid)
+		bool isRunningInAndroid = new AndroidJavaClass("android.os.Build").GetRawClass() != IntPtr.Zero;
+		if (isRunningInAndroid == false)
+		{
+			DisplayError("Please run this on an Android device!");
 			return;
+		}
 
 		_random = new Random();
 		
 		m_PublicKey.Modulus = Convert.FromBase64String(m_PublicKey_Modulus_Base64);
 		m_PublicKey.Exponent = Convert.FromBase64String(m_PublicKey_Exponent_Base64);	
 
-		LoadServiceBinder();
-
-		m_ButtonMessage = "Check LVL";
+		m_Activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer").GetStatic<AndroidJavaObject>("currentActivity");
+		m_PackageName = m_Activity.Call<string>("getPackageName");
 	}
 
 	private void OnValidate()
@@ -67,32 +80,28 @@ public class CheckLVLButton : MonoBehaviour
 			m_PublicKey_Exponent_Base64 = Convert.ToBase64String(m_PublicKey.Exponent);
 			m_PublicKey_Base64 = string.Empty;
 		}
+		
+		button = GetComponent<Button>();
 	}
 
-	/*
-	 *
-	 */
-	private void LoadServiceBinder()
+	public void VerifyLicense()
 	{
-		m_Activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer").GetStatic<AndroidJavaObject>("currentActivity");
-		m_PackageName = m_Activity.Call<string>("getPackageName");
-		m_LVLCheckType = new AndroidJavaObject("com.unity3d.plugin.lvl.ServiceBinder", m_Activity);
+		button.interactable = false;
+		
+		m_Nonce = _random.Next();
+
+		string results = "<b>Requesting LVL response...</b>\n" +
+		                 $"Package name: {m_PackageName}\n" +
+		                 $"Request nonce: 0x{m_Nonce:X}";
+		DisplayResults(results);
+		
+		m_LVLCheck = new AndroidJavaObject("com.unity3d.plugin.lvl.ServiceBinder", m_Activity);
+		m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process));
 	}
 	
-	private bool m_RunningOnAndroid = false;
-
-	private AndroidJavaObject m_Activity;
-	private AndroidJavaObject m_LVLCheckType;
-
-	private AndroidJavaObject m_LVLCheck = null;
-
-	private string m_ButtonMessage = "Invalid LVL key!\nCheck the source...";
-	private bool m_ButtonEnabled = true;
-
 	private string m_PackageName;
 	private int m_Nonce;
 
-	private bool m_LVL_Received = false;
 	private string m_ResponseCode_Received;
 	private string m_PackageName_Received;
 	private int m_Nonce_Received;
@@ -103,68 +112,15 @@ public class CheckLVLButton : MonoBehaviour
 	private string m_LicenceValidityTimestamp_Received;
 	private string m_GracePeriodTimestamp_Received;
 	private string m_UpdateTimestamp_Received;
-	private string m_FileURL1_Received = "";
-	private string m_FileURL2_Received = "";
+	private string m_FileURL1_Received = string.Empty;
+	private string m_FileURL2_Received = string.Empty;
 	private string m_FileName1_Received;
 	private string m_FileName2_Received;
 	private int m_FileSize1_Received;
 	private int m_FileSize2_Received;
-	private string m_LicensingURL_Received = "";
+	private string m_LicensingURL_Received = string.Empty;
 
-	void OnGUI()
-	{
-		if (!m_RunningOnAndroid)
-		{
-			GUI.Label(new Rect(10, 10, Screen.width - 10, 20), "Use LVL checks only on the Android device!");
-			return;
-		}
-		GUI.enabled = m_ButtonEnabled;
-		if (GUI.Button(new Rect(10, 10, 450, 300), m_ButtonMessage))
-		{
-			m_ButtonMessage = "Checking...";
-			m_ButtonEnabled = false;
-
-			m_Nonce = _random.Next();
-
-			m_LVLCheck = new AndroidJavaObject("com.unity3d.plugin.lvl.ServiceBinder", m_Activity);
-			m_LVLCheck.Call("create", m_Nonce, new AndroidJavaRunnable(Process));
-		}
-		GUI.enabled = true;
-
-		if (m_LVLCheck != null || m_LVL_Received)
-		{
-			GUI.Label(new Rect(10, 320, 450, 20), "Requesting LVL response:");
-			GUI.Label(new Rect(20, 340, 450, 20), "Package name  = " + m_PackageName);
-			GUI.Label(new Rect(20, 360, 450, 20), "Request nonce = 0x" + m_Nonce.ToString("X"));
-		}
-
-		if (m_LVLCheck == null && m_LVL_Received)
-		{
-			GUI.Label(new Rect(10, 420, 450, 20), "Received LVL response:");
-			GUI.Label(new Rect(20, 440, 450, 20), "Response code  = " + m_ResponseCode_Received);
-			GUI.Label(new Rect(20, 460, 450, 20), "Package name   = " + m_PackageName_Received);
-			GUI.Label(new Rect(20, 480, 450, 20), "Received nonce = 0x" + m_Nonce_Received.ToString("X"));
-			GUI.Label(new Rect(20, 500, 450, 20), "Version code = " + m_VersionCode_Received);
-			GUI.Label(new Rect(20, 520, 450, 20), "User ID   = " + m_UserID_Received);
-			GUI.Label(new Rect(20, 540, 450, 20), "Timestamp = " + m_Timestamp_Received);
-			GUI.Label(new Rect(20, 560, 450, 20), "Max Retry = " + m_MaxRetry_Received);
-			GUI.Label(new Rect(20, 580, 450, 20), "License Validity = " + m_LicenceValidityTimestamp_Received);
-			GUI.Label(new Rect(20, 600, 450, 20), "Grace Period = " + m_GracePeriodTimestamp_Received);
-			GUI.Label(new Rect(20, 620, 450, 20), "Update Since = " + m_UpdateTimestamp_Received);
-			GUI.Label(new Rect(20, 640, 450, 20), "Main OBB URL = " + m_FileURL1_Received.Substring(0,
-															Mathf.Min(m_FileURL1_Received.Length,50)) + "...");
-			GUI.Label(new Rect(20, 660, 450, 20), "Main OBB Name = " + m_FileName1_Received);
-			GUI.Label(new Rect(20, 680, 450, 20), "Main OBB Size = " + m_FileSize1_Received);
-			GUI.Label(new Rect(20, 700, 450, 20), "Patch OBB URL = " + m_FileURL2_Received.Substring(0,
-															Mathf.Min(m_FileURL2_Received.Length,50)) + "...");
-			GUI.Label(new Rect(20, 720, 450, 20), "Patch OBB Name = " + m_FileName2_Received);
-			GUI.Label(new Rect(20, 740, 450, 20), "Patch OBB Size = " + m_FileSize2_Received);
-			GUI.Label(new Rect(20, 760, 450, 20), "Licensing URL = " + m_LicensingURL_Received.Substring(0,
-															Mathf.Min(m_LicensingURL_Received.Length,50)) + "...");
-		}
-	}
-
-	internal static Dictionary<string, string> DecodeExtras(string query)
+	private static Dictionary<string, string> DecodeExtras(string query)
 	{
 		Dictionary<string, string> result = new Dictionary<string, string>();
 
@@ -199,12 +155,11 @@ public class CheckLVLButton : MonoBehaviour
 					namePos++;
 			}
 
-			string name, value;
+			string name;
 
 			if (valuePos == -1)
 			{
-
-				name = null;
+				name = string.Empty;
 				valuePos = namePos;
 			}
 			else
@@ -222,7 +177,7 @@ public class CheckLVLButton : MonoBehaviour
 				namePos = valueEnd + 1;
 			}
 
-			value = UnityWebRequest.UnEscapeURL(decoded.Substring(valuePos, valueEnd - valuePos));
+			string value = UnityWebRequest.UnEscapeURL(decoded.Substring(valuePos, valueEnd - valuePos));
 
 			result.Add(name, value);
 			if (namePos == -1)
@@ -231,11 +186,11 @@ public class CheckLVLButton : MonoBehaviour
 		return result;
 	}
 
-	private System.Int64 ConvertEpochSecondsToTicks(System.Int64 secs)
+	private Int64 ConvertEpochSecondsToTicks(Int64 secs)
 	{
-		System.DateTime epoch = new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
-		System.Int64 seconds_to_100ns_ticks	=  10 * 1000;
-		System.Int64 max_seconds_allowed =  (System.DateTime.MaxValue.Ticks - epoch.Ticks)
+		DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		Int64 seconds_to_100ns_ticks	=  10 * 1000;
+		Int64 max_seconds_allowed =  (DateTime.MaxValue.Ticks - epoch.Ticks)
 												/ seconds_to_100ns_ticks;
 		if (secs < 0)
 			secs = 0;
@@ -246,12 +201,20 @@ public class CheckLVLButton : MonoBehaviour
 
 	private void Process()
 	{
-		m_LVL_Received = true;
-		m_ButtonMessage = "Check LVL";
-		m_ButtonEnabled = true;
+		button.interactable = true;
+
+		string results = "<b>Requested LVL response</b>\n" +
+		                 $"Package name: {m_PackageName}\n" +
+		                 $"Request nonce: 0x{m_Nonce:X}\n" +
+		                 "------------------------------------------\n" +
+		                 "<b>Received LVL response</b>\n";
 
 		if (m_LVLCheck == null)
+		{
+			results += "m_LVLCheck is null!";
+			DisplayResults(results);
 			return;
+		}
 
 		int responseCode	= m_LVLCheck.Get<int>("_arg0");
 		string message		= m_LVLCheck.Get<string>("_arg1");
@@ -263,12 +226,13 @@ public class CheckLVLButton : MonoBehaviour
 		m_ResponseCode_Received = responseCode.ToString();
 		if (responseCode < 0 || string.IsNullOrEmpty(message) || string.IsNullOrEmpty(signature))
 		{
-			m_PackageName_Received = "<Failed>";
+			results += "Package name: <Failed>";
+			DisplayResults(results);
 			return;
 		}
 
 		byte[] message_bytes = System.Text.Encoding.UTF8.GetBytes(message);
-		byte[] signature_bytes = System.Convert.FromBase64String(signature);
+		byte[] signature_bytes = Convert.FromBase64String(signature);
 		RSACryptoServiceProvider csp = new RSACryptoServiceProvider();
 		csp.ImportParameters(m_PublicKey);
 		SHA1Managed sha1 = new SHA1Managed();
@@ -276,8 +240,9 @@ public class CheckLVLButton : MonoBehaviour
 
 		if (!match)
 		{
-			m_ResponseCode_Received = "<Failed>";
-			m_PackageName_Received = "<Invalid Signature>";
+			results += "Response code: <Failed>" +
+			           "Package name: <Invalid Signature>";
+			DisplayResults(results);
 			return;
 		}
 
@@ -286,30 +251,31 @@ public class CheckLVLButton : MonoBehaviour
 		if (-1 == index)
 		{
 			mainData = message;
-			extraData = "";
+			extraData = string.Empty;
 		}
 		else
 		{
 			mainData = message.Substring(0, index);
-			extraData = index >= message.Length ? "" : message.Substring(index + 1);
+			extraData = index >= message.Length ? string.Empty : message.Substring(index + 1);
 		}
 
 		string[] vars = mainData.Split('|');		// response | nonce | package | version | userid | timestamp
 
-		if (vars[0].CompareTo(responseCode.ToString()) != 0)
+		if (String.Compare(vars[0], responseCode.ToString(), StringComparison.Ordinal) != 0)
 		{
-			m_ResponseCode_Received = "<Failed>";
-			m_PackageName_Received = "<Response Mismatch>";
+			results += "Response code: <Failed>" +
+			           "Package name: <Invalid Mismatch>";
+			DisplayResults(results);
 			return;
 		}
 
 		m_ResponseCode_Received		= vars[0];
-		m_Nonce_Received			= System.Convert.ToInt32(vars[1]);
+		m_Nonce_Received			= Convert.ToInt32(vars[1]);
 		m_PackageName_Received		= vars[2];
-		m_VersionCode_Received		= System.Convert.ToInt32(vars[3]);
+		m_VersionCode_Received		= Convert.ToInt32(vars[3]);
 		m_UserID_Received			= vars[4];
-		System.Int64 ticks			= ConvertEpochSecondsToTicks(System.Convert.ToInt64(vars[5]));
-		m_Timestamp_Received		= new System.DateTime(ticks).ToLocalTime().ToString();
+		Int64 ticks			= ConvertEpochSecondsToTicks(Convert.ToInt64(vars[5]));
+		m_Timestamp_Received		= new DateTime(ticks).ToLocalTime().ToString();
 
 		if (!string.IsNullOrEmpty(extraData))
 		{
@@ -317,7 +283,7 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("GR"))
 			{
-				m_MaxRetry_Received = System.Convert.ToInt32(extrasDecoded["GR"]);
+				m_MaxRetry_Received = Convert.ToInt32(extrasDecoded["GR"]);
 			}
 			else
 			{
@@ -326,8 +292,8 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("VT"))
 			{
-				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["VT"]));
-				m_LicenceValidityTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
+				ticks = ConvertEpochSecondsToTicks(Convert.ToInt64(extrasDecoded["VT"]));
+				m_LicenceValidityTimestamp_Received = new DateTime(ticks).ToLocalTime().ToString();
 			}
 			else
 			{
@@ -336,8 +302,8 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("GT"))
 			{
-				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["GT"]));
-				m_GracePeriodTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
+				ticks = ConvertEpochSecondsToTicks(Convert.ToInt64(extrasDecoded["GT"]));
+				m_GracePeriodTimestamp_Received = new DateTime(ticks).ToLocalTime().ToString();
 			}
 			else
 			{
@@ -346,8 +312,8 @@ public class CheckLVLButton : MonoBehaviour
 
 			if (extrasDecoded.ContainsKey("UT"))
 			{
-				ticks = ConvertEpochSecondsToTicks(System.Convert.ToInt64(extrasDecoded["UT"]));
-				m_UpdateTimestamp_Received = new System.DateTime(ticks).ToLocalTime().ToString();
+				ticks = ConvertEpochSecondsToTicks(Convert.ToInt64(extrasDecoded["UT"]));
+				m_UpdateTimestamp_Received = new DateTime(ticks).ToLocalTime().ToString();
 			}
 			else
 			{
@@ -417,5 +383,37 @@ public class CheckLVLButton : MonoBehaviour
 				m_LicensingURL_Received = "";
 			}
 		}
+		
+		results += $"Response code: {m_ResponseCode_Received}\n" +
+		           $"Package name: {m_PackageName_Received}\n" +
+		           $"Received nonce: 0x{m_Nonce_Received:X}\n" +
+		           $"Version code: {m_VersionCode_Received}\n" +
+		           $"User ID: {m_UserID_Received}\n" +
+		           $"Timestamp: {m_Timestamp_Received}\n" +
+		           $"Max Retry: {m_MaxRetry_Received}\n" +
+		           $"License Validity: {m_LicenceValidityTimestamp_Received}\n" +
+		           $"Grace Period: {m_GracePeriodTimestamp_Received}\n" +
+		           $"Update Since: {m_UpdateTimestamp_Received}\n" +
+		           $"Main OBB URL: {m_FileURL1_Received.Substring(0, Mathf.Min(m_FileURL1_Received.Length,50)) + "..."}\n" +
+		           $"Main OBB Name: {m_FileName1_Received}\n" +
+		           $"Main OBB Size: {m_FileSize1_Received}\n" +
+		           $"Patch OBB URL: {m_FileURL2_Received.Substring(0, Mathf.Min(m_FileURL2_Received.Length,50)) + "..."}\n" +
+		           $"Patch OBB Name: {m_FileName2_Received}\n" +
+		           $"Patch OBB Size: {m_FileSize2_Received}\n" +
+		           $"Licensing URL: {m_LicensingURL_Received.Substring(0, Mathf.Min(m_LicensingURL_Received.Length,50)) + "..."}\n";
+		DisplayResults(results);
+	}
+
+	private void DisplayResults(string text)
+	{
+		Debug.Log(text);
+		resultsTextArea.text = text;
+	}
+
+	private void DisplayError(string text)
+	{
+		button.interactable = false;
+		resultsTextArea.text = text;
+		Debug.LogError(text);
 	}
 }
